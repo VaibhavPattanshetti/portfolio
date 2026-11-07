@@ -350,8 +350,12 @@
   function place() {
     if (moved) return clamp();
     const w = win.offsetWidth, h = win.offsetHeight;
-    win.style.left = Math.max(12, innerWidth - w - 48) + "px";
-    win.style.top = Math.max(12, innerHeight - h - 90) + "px";
+    const lRect = launcher.getBoundingClientRect();
+    let targetLeft = lRect.right - w;
+    let targetTop = lRect.top - h - 14;
+    if (targetTop < 12) targetTop = Math.min(innerHeight - h - 12, lRect.bottom + 14);
+    win.style.left = Math.max(12, Math.min(innerWidth - w - 12, targetLeft)) + "px";
+    win.style.top = Math.max(12, Math.min(innerHeight - h - 12, targetTop)) + "px";
   }
 
   function clamp() {
@@ -359,6 +363,17 @@
     const y = Math.min(Math.max(0, win.offsetTop), Math.max(0, innerHeight - 46));
     win.style.left = x + "px";
     win.style.top = y + "px";
+  }
+
+  function clampLauncher() {
+    if (launcher.style.left && launcher.style.left !== "auto") {
+      const maxLeft = Math.max(10, window.innerWidth - launcher.offsetWidth - 10);
+      const maxTop = Math.max(10, window.innerHeight - launcher.offsetHeight - 10);
+      const curLeft = parseFloat(launcher.style.left) || 0;
+      const curTop = parseFloat(launcher.style.top) || 0;
+      launcher.style.left = Math.min(Math.max(10, curLeft), maxLeft) + "px";
+      launcher.style.top = Math.min(Math.max(10, curTop), maxTop) + "px";
+    }
   }
 
   const open = () => {
@@ -369,7 +384,60 @@
 
   const close = () => win.classList.remove("open");
 
-  launcher.addEventListener("click", () => (win.classList.contains("open") ? close() : open()));
+  // ===== Draggable Launcher Button =====
+  let lDrag = false, lMoved = false, lsx = 0, lsy = 0, lox = 0, loy = 0;
+
+  launcher.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    lDrag = true;
+    lMoved = false;
+    launcher.classList.add("dragging");
+    launcher.setPointerCapture(e.pointerId);
+    lsx = e.clientX;
+    lsy = e.clientY;
+    const rect = launcher.getBoundingClientRect();
+    lox = rect.left;
+    loy = rect.top;
+  });
+
+  launcher.addEventListener("pointermove", (e) => {
+    if (!lDrag) return;
+    const dx = e.clientX - lsx;
+    const dy = e.clientY - lsy;
+    if (!lMoved && Math.hypot(dx, dy) < 4) return;
+    lMoved = true;
+    launcher.style.right = "auto";
+    launcher.style.bottom = "auto";
+    const maxLeft = Math.max(10, window.innerWidth - launcher.offsetWidth - 10);
+    const maxTop = Math.max(10, window.innerHeight - launcher.offsetHeight - 10);
+    const newLeft = Math.min(Math.max(10, lox + dx), maxLeft);
+    const newTop = Math.min(Math.max(10, loy + dy), maxTop);
+    launcher.style.left = newLeft + "px";
+    launcher.style.top = newTop + "px";
+  });
+
+  const stopLauncherDrag = (e) => {
+    if (!lDrag) return;
+    lDrag = false;
+    launcher.classList.remove("dragging");
+    try {
+      launcher.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+  };
+
+  launcher.addEventListener("pointerup", (e) => {
+    const wasMoved = lMoved;
+    stopLauncherDrag(e);
+    if (!wasMoved) {
+      if (win.classList.contains("open")) {
+        close();
+      } else {
+        open();
+      }
+    }
+  });
+  launcher.addEventListener("pointercancel", stopLauncherDrag);
+
   $(".r").addEventListener("click", close);
   $(".y").addEventListener("click", close);
   $(".g").addEventListener("click", () => {
@@ -384,7 +452,10 @@
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") close();
   });
-  addEventListener("resize", () => win.classList.contains("open") && clamp());
+  addEventListener("resize", () => {
+    if (win.classList.contains("open")) clamp();
+    clampLauncher();
+  });
 
   // ===== Interactive Resizing with Bounds Checking =====
   let resizing = false,

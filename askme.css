@@ -2,14 +2,23 @@
 .askme-launcher {
   position: fixed; right: 48px; bottom: 24px; z-index: 9998;
   display: flex; align-items: center; gap: 10px;
-  padding: 12px 22px 12px 16px; border: 0; border-radius: 16px; cursor: pointer;
+  padding: 12px 22px 12px 16px; border: 0; border-radius: 16px; cursor: grab;
   background: #dfe2f3; color: #1c1c1e; font-family: inherit; font-size: 15px; font-weight: 500;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
   transform-origin: bottom right;
   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
 }
-.askme-launcher:hover { transform: scale(1.12); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.6); }
-.askme-launcher:active { transform: scale(1.04); }
+.askme-launcher.dragging {
+  cursor: grabbing;
+  transition: none !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+  transform: scale(1.06);
+}
+.askme-launcher:hover:not(.dragging) { transform: scale(1.12); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.6); }
+.askme-launcher:active:not(.dragging) { transform: scale(1.04); }
 .askme-launcher:focus-visible { outline: 2px solid #0a84ff; outline-offset: 3px; }
 .askme-launcher svg { width: 26px; height: 26px; flex: none; }
 
