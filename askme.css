@@ -15,7 +15,7 @@
   cursor: grabbing;
   transition: none !important;
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.7);
-  transform: scale(1.06);
+  transform: none !important;
 }
 .askme-launcher:hover:not(.dragging) { transform: scale(1.12); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.6); }
 .askme-launcher:active:not(.dragging) { transform: scale(1.04); }
@@ -40,28 +40,16 @@
 
   /* Authentic macOS Window Styling */
   opacity: 0;
-  transform: perspective(700px) rotateX(28deg) rotateY(-8deg) skewX(-14deg) scaleX(0.06) scaleY(0.02) translateY(60px);
-  filter: blur(8px);
   pointer-events: none;
   visibility: hidden;
   transform-origin: bottom right;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
 }
 .askme-window.open {
   opacity: 1;
-  transform: perspective(700px) rotateX(0deg) rotateY(0deg) skewX(0deg) scale(1) translateY(0);
-  filter: blur(0px);
   pointer-events: auto;
   visibility: visible;
-}
-.askme-window.genie-open {
-  animation: macGenieOpen 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
-  pointer-events: auto;
-  visibility: visible;
-}
-.askme-window.genie-close {
-  animation: macGenieClose 0.35s cubic-bezier(0.33, 0, 0.67, 1) forwards !important;
-  pointer-events: none;
+  transform: none;
 }
 .askme-window.dragging,
 .askme-window.resizing,
@@ -69,56 +57,6 @@
   animation: none !important;
   transition: none !important;
   will-change: left, top, width, height;
-}
-
-/* Legendary Apple macOS Genie Effect Keyframes */
-@keyframes macGenieOpen {
-  0% {
-    opacity: 0;
-    transform: perspective(700px) rotateX(28deg) rotateY(-8deg) skewX(-14deg) scaleX(0.06) scaleY(0.02) translateY(60px);
-    filter: blur(8px);
-  }
-  35% {
-    opacity: 0.85;
-    transform: perspective(700px) rotateX(16deg) rotateY(-5deg) skewX(-8deg) scaleX(0.48) scaleY(0.65) translateY(24px);
-    filter: blur(3px);
-  }
-  70% {
-    opacity: 1;
-    transform: perspective(700px) rotateX(4deg) rotateY(-1deg) skewX(-2deg) scaleX(0.92) scaleY(0.98) translateY(6px);
-    filter: blur(0px);
-  }
-  88% {
-    transform: perspective(700px) rotateX(-2deg) rotateY(1deg) skewX(1deg) scaleX(1.02) scaleY(1.01) translateY(-2px);
-  }
-  100% {
-    opacity: 1;
-    transform: perspective(700px) rotateX(0deg) rotateY(0deg) skewX(0deg) scale(1) translateY(0);
-    filter: blur(0px);
-  }
-}
-
-@keyframes macGenieClose {
-  0% {
-    opacity: 1;
-    transform: perspective(700px) rotateX(0deg) rotateY(0deg) skewX(0deg) scale(1) translateY(0);
-    filter: blur(0px);
-  }
-  30% {
-    opacity: 0.95;
-    transform: perspective(700px) rotateX(10deg) rotateY(-3deg) skewX(-5deg) scaleX(0.78) scaleY(0.88) translateY(14px);
-  }
-  65% {
-    opacity: 0.6;
-    transform: perspective(700px) rotateX(22deg) rotateY(-7deg) skewX(-11deg) scaleX(0.32) scaleY(0.42) translateY(40px);
-    filter: blur(3px);
-  }
-  100% {
-    opacity: 0;
-    transform: perspective(700px) rotateX(30deg) rotateY(-9deg) skewX(-16deg) scaleX(0.05) scaleY(0.01) translateY(65px);
-    filter: blur(8px);
-    visibility: hidden;
-  }
 }
 .askme-window.large { width: min(620px, calc(100vw - 24px)); height: min(680px, calc(100vh - 24px)); }
 

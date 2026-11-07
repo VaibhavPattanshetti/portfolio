@@ -347,15 +347,37 @@
     setApiUrl: (url) => { window.ASKME_API_URL = url; }
   };
 
-  function place() {
-    if (moved) return clamp();
-    const w = win.offsetWidth, h = win.offsetHeight;
-    const lRect = launcher.getBoundingClientRect();
-    let targetLeft = lRect.right - w;
-    let targetTop = lRect.top - h - 14;
-    if (targetTop < 12) targetTop = Math.min(innerHeight - h - 12, lRect.bottom + 14);
-    win.style.left = Math.max(12, Math.min(innerWidth - w - 12, targetLeft)) + "px";
-    win.style.top = Math.max(12, Math.min(innerHeight - h - 12, targetTop)) + "px";
+  function getDefaultPosition() {
+    const w = win.offsetWidth || 400;
+    const h = win.offsetHeight || 530;
+    const article = document.querySelector("article.active") || document.querySelector(".main-content") || document.querySelector("article");
+
+    let targetLeft, targetTop;
+    if (window.innerWidth >= 1024 && article) {
+      const aRect = article.getBoundingClientRect();
+      targetLeft = Math.round(aRect.left + (aRect.width - w) / 2);
+      targetTop = 88;
+    } else if (window.innerWidth >= 768) {
+      targetLeft = Math.round(window.innerWidth * 0.41);
+      targetTop = 88;
+    } else {
+      targetLeft = Math.round((window.innerWidth - w) / 2);
+      targetTop = Math.max(16, Math.min(88, Math.round((window.innerHeight - h) / 3)));
+    }
+
+    const maxLeft = Math.max(10, window.innerWidth - w - 10);
+    const maxTop = Math.max(10, window.innerHeight - h - 10);
+    return {
+      left: Math.min(Math.max(10, targetLeft), maxLeft),
+      top: Math.min(Math.max(10, targetTop), maxTop)
+    };
+  }
+
+  function resetToDefaultPosition() {
+    const pos = getDefaultPosition();
+    win.style.left = pos.left + "px";
+    win.style.top = pos.top + "px";
+    moved = false;
   }
 
   function clamp() {
@@ -376,46 +398,150 @@
     }
   }
 
-  const updateTransformOrigin = () => {
-    const lRect = launcher.getBoundingClientRect();
-    const wRect = win.getBoundingClientRect();
-    if (!wRect.width || !wRect.height) return;
-    const originX = ((lRect.left + lRect.width / 2) - wRect.left) / wRect.width * 100;
-    const originY = ((lRect.top + lRect.height / 2) - wRect.top) / wRect.height * 100;
-    win.style.transformOrigin = `${Math.min(100, Math.max(0, originX))}% ${Math.min(100, Math.max(0, originY))}%`;
-  };
-
   let isAnimating = false;
+  let currentAnim = null;
 
   const open = () => {
     if (win.classList.contains("open") || isAnimating) return;
     isAnimating = true;
-    place();
-    updateTransformOrigin();
-    win.classList.remove("genie-close");
-    win.classList.add("open", "genie-open");
-    setTimeout(() => {
-      win.classList.remove("genie-open");
+
+    // Reset to user's desired default position every time
+    resetToDefaultPosition();
+
+    // Make visible in DOM for accurate measurements
+    win.classList.add("open");
+
+    const lRect = launcher.getBoundingClientRect();
+    const wRect = win.getBoundingClientRect();
+
+    // Origin: bottom-right launcher / taskbar point
+    const originX = lRect.right - (lRect.width * 0.2);
+    const originY = lRect.bottom - (lRect.height * 0.2);
+    const dx = Math.round(originX - wRect.right);
+    const dy = Math.round(originY - wRect.bottom);
+
+    win.style.transformOrigin = "bottom right";
+
+    if (typeof win.animate === "function") {
+      if (currentAnim) {
+        try { currentAnim.cancel(); } catch (_) {}
+      }
+
+      currentAnim = win.animate(
+        [
+          {
+            opacity: 0,
+            transform: `translate3d(${dx}px, ${dy}px, 0) scale(0.04, 0.02) skewX(-14deg)`,
+            transformOrigin: "bottom right"
+          },
+          {
+            opacity: 0.95,
+            transform: `translate3d(${Math.round(dx * 0.52)}px, ${Math.round(dy * 0.38)}px, 0) scale(0.42, 0.62) skewX(-7deg)`,
+            transformOrigin: "bottom right",
+            offset: 0.36
+          },
+          {
+            opacity: 1,
+            transform: `translate3d(${Math.round(dx * 0.14)}px, ${Math.round(dy * 0.08)}px, 0) scale(0.88, 0.94) skewX(-1.5deg)`,
+            transformOrigin: "bottom right",
+            offset: 0.72
+          },
+          {
+            opacity: 1,
+            transform: `translate3d(${Math.round(dx * 0.02)}px, ${Math.round(dy * 0.01)}px, 0) scale(1.012, 1.008) skewX(0.4deg)`,
+            transformOrigin: "bottom right",
+            offset: 0.88
+          },
+          {
+            opacity: 1,
+            transform: "translate3d(0, 0, 0) scale(1, 1) skewX(0deg)",
+            transformOrigin: "bottom right"
+          }
+        ],
+        {
+          duration: 380,
+          easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+          fill: "forwards"
+        }
+      );
+
+      currentAnim.onfinish = () => {
+        try { currentAnim.cancel(); } catch (_) {}
+        currentAnim = null;
+        isAnimating = false;
+        input.focus({ preventScroll: true });
+      };
+    } else {
       isAnimating = false;
       input.focus({ preventScroll: true });
-    }, 420);
+    }
   };
 
   const close = () => {
     if (!win.classList.contains("open") || isAnimating) return;
     isAnimating = true;
-    updateTransformOrigin();
-    win.classList.remove("genie-open");
-    win.classList.add("genie-close");
-    setTimeout(() => {
-      win.classList.remove("open", "genie-close");
+
+    const lRect = launcher.getBoundingClientRect();
+    const wRect = win.getBoundingClientRect();
+
+    const originX = lRect.right - (lRect.width * 0.2);
+    const originY = lRect.bottom - (lRect.height * 0.2);
+    const dx = Math.round(originX - wRect.right);
+    const dy = Math.round(originY - wRect.bottom);
+
+    win.style.transformOrigin = "bottom right";
+
+    if (typeof win.animate === "function") {
+      if (currentAnim) {
+        try { currentAnim.cancel(); } catch (_) {}
+      }
+
+      currentAnim = win.animate(
+        [
+          {
+            opacity: 1,
+            transform: "translate3d(0, 0, 0) scale(1, 1) skewX(0deg)",
+            transformOrigin: "bottom right"
+          },
+          {
+            opacity: 0.95,
+            transform: `translate3d(${Math.round(dx * 0.12)}px, ${Math.round(dy * 0.08)}px, 0) scale(0.85, 0.88) skewX(-1.5deg)`,
+            transformOrigin: "bottom right",
+            offset: 0.25
+          },
+          {
+            opacity: 0.7,
+            transform: `translate3d(${Math.round(dx * 0.52)}px, ${Math.round(dy * 0.38)}px, 0) scale(0.38, 0.52) skewX(-7deg)`,
+            transformOrigin: "bottom right",
+            offset: 0.65
+          },
+          {
+            opacity: 0,
+            transform: `translate3d(${dx}px, ${dy}px, 0) scale(0.04, 0.02) skewX(-14deg)`,
+            transformOrigin: "bottom right"
+          }
+        ],
+        {
+          duration: 320,
+          easing: "cubic-bezier(0.32, 0, 0.67, 1)",
+          fill: "forwards"
+        }
+      );
+
+      currentAnim.onfinish = () => {
+        try { currentAnim.cancel(); } catch (_) {}
+        currentAnim = null;
+        win.classList.remove("open");
+        isAnimating = false;
+      };
+    } else {
+      win.classList.remove("open");
       isAnimating = false;
-    }, 340);
+    }
   };
 
-  // ===== Draggable Launcher Button with rAF 60/120fps Sync =====
+  // ===== Draggable Launcher Button with Immediate 1:1 Movement =====
   let lDrag = false, lMoved = false, lsx = 0, lsy = 0, lox = 0, loy = 0;
-  let lTargetLeft = 0, lTargetTop = 0, lRafId = null;
 
   launcher.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
@@ -428,8 +554,6 @@
     const rect = launcher.getBoundingClientRect();
     lox = rect.left;
     loy = rect.top;
-    lTargetLeft = lox;
-    lTargetTop = loy;
   });
 
   launcher.addEventListener("pointermove", (e) => {
@@ -441,27 +565,15 @@
 
     const maxLeft = Math.max(10, window.innerWidth - launcher.offsetWidth - 10);
     const maxTop = Math.max(10, window.innerHeight - launcher.offsetHeight - 10);
-    lTargetLeft = Math.min(Math.max(10, lox + dx), maxLeft);
-    lTargetTop = Math.min(Math.max(10, loy + dy), maxTop);
-
-    if (!lRafId) {
-      lRafId = requestAnimationFrame(() => {
-        launcher.style.right = "auto";
-        launcher.style.bottom = "auto";
-        launcher.style.left = lTargetLeft + "px";
-        launcher.style.top = lTargetTop + "px";
-        lRafId = null;
-      });
-    }
+    launcher.style.right = "auto";
+    launcher.style.bottom = "auto";
+    launcher.style.left = Math.min(Math.max(10, lox + dx), maxLeft) + "px";
+    launcher.style.top = Math.min(Math.max(10, loy + dy), maxTop) + "px";
   });
 
   const stopLauncherDrag = (e) => {
     if (!lDrag) return;
     lDrag = false;
-    if (lRafId) {
-      cancelAnimationFrame(lRafId);
-      lRafId = null;
-    }
     launcher.classList.remove("dragging");
     try {
       launcher.releasePointerCapture(e.pointerId);
@@ -570,9 +682,8 @@
   win.addEventListener("pointerup", stopResize);
   win.addEventListener("pointercancel", stopResize);
 
-  // ===== Titlebar Dragging with rAF 60/120fps Sync =====
+  // ===== Titlebar Dragging with Immediate 1:1 Movement =====
   let sx, sy, ox, oy, dragging = false;
-  let wTargetLeft = 0, wTargetTop = 0, wRafId = null;
 
   bar.addEventListener("pointerdown", (e) => {
     if (e.target.closest(".askme-dots") || e.target.closest(".askme-resize-handle")) return;
@@ -585,33 +696,19 @@
     sy = e.clientY;
     ox = win.offsetLeft;
     oy = win.offsetTop;
-    wTargetLeft = ox;
-    wTargetTop = oy;
   });
 
   bar.addEventListener("pointermove", (e) => {
     if (!dragging) return;
     const maxLeft = Math.max(0, window.innerWidth - win.offsetWidth);
     const maxTop = Math.max(0, window.innerHeight - 46);
-    wTargetLeft = Math.min(Math.max(0, ox + e.clientX - sx), maxLeft);
-    wTargetTop = Math.min(Math.max(0, oy + e.clientY - sy), maxTop);
-
-    if (!wRafId) {
-      wRafId = requestAnimationFrame(() => {
-        win.style.left = wTargetLeft + "px";
-        win.style.top = wTargetTop + "px";
-        wRafId = null;
-      });
-    }
+    win.style.left = Math.min(Math.max(0, ox + e.clientX - sx), maxLeft) + "px";
+    win.style.top = Math.min(Math.max(0, oy + e.clientY - sy), maxTop) + "px";
   });
 
   const stopDrag = () => {
     if (!dragging) return;
     dragging = false;
-    if (wRafId) {
-      cancelAnimationFrame(wRafId);
-      wRafId = null;
-    }
     win.classList.remove("dragging");
     bar.classList.remove("dragging");
   };
