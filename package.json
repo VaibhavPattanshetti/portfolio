@@ -1,0 +1,11 @@
+{
+  "name": "vaibhav-portfolio",
+  "version": "1.0.0",
+  "description": "Vaibhav Pattanshetti - AI/ML Engineer Portfolio Website with Serverless Chatbot",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node dev-server.js",
+    "dev": "node dev-server.js"
+  }
+}
