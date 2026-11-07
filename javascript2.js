@@ -80,13 +80,12 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     } catch (err) {
       console.warn("Form notice:", err);
-      contactForm.reset();
       if (submitBtn) {
         submitBtn.classList.remove("sending");
-        submitBtn.classList.add("success");
-        submitBtn.innerHTML = `<ion-icon name="checkmark-circle"></ion-icon> <span>Message Sent!</span>`;
+        submitBtn.innerHTML = originalContent;
+        submitBtn.disabled = false;
       }
-      showToast("Message Received!", "Thank you! Your message has been received.");
+      showToast("Submission Error", "Could not submit form. Please reach out directly at vaibhavpattanshetti123@gmail.com.");
     } finally {
       setTimeout(() => {
         if (submitBtn) {
