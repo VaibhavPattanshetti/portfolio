@@ -2,7 +2,7 @@
 // Streams responses from Groq with multi-key pooling, failover, and zero cold-start delay.
 
 export const config = {
-  path: "/api/chat",
+  path: ["/api/chat", "/.netlify/functions/chat"],
 };
 
 // ==========================================

@@ -210,11 +210,17 @@
     let hasReceivedToken = false;
 
     try {
+      const isHttps = window.location.protocol === "https:";
       const primary = getPrimaryApiUrl();
-      const endpoints = [
-        `${primary}/api/chat`,
-        primary !== "" ? "/api/chat" : "http://127.0.0.1:8000/api/chat",
-      ];
+      const endpoints = [];
+      if (primary) {
+        endpoints.push(`${primary}/api/chat`);
+      }
+      endpoints.push("/api/chat");
+      endpoints.push("/.netlify/functions/chat");
+      if (!isHttps) {
+        endpoints.push("http://127.0.0.1:8000/api/chat");
+      }
 
       let response = null;
       let lastErr = null;
@@ -226,7 +232,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ messages: chatHistory }),
           });
-          if (res.ok || res.status === 400 || res.status === 429) {
+          if (res.ok || res.status === 400 || res.status === 429 || res.status === 500) {
             response = res;
             break;
           }
@@ -302,7 +308,8 @@
     } catch (err) {
       console.error("AskMe Error:", err);
       const msg = err && err.message ? err.message : "Unable to reach backend server";
-      botMsg.innerHTML = `<p>⚠️ <strong>Assistant Notice:</strong> ${msg}</p><p style="font-size:12px;opacity:0.85;">If running locally, run <code>node dev-server.js</code> or <code>python backend/main.py</code>. You can also contact Vaibhav directly at <a href="mailto:vaibhavpattanshetti123@gmail.com">vaibhavpattanshetti123@gmail.com</a>.</p>`;
+      const localHint = window.location.protocol !== "https:" ? " If running locally, run <code>node dev-server.js</code>." : "";
+      botMsg.innerHTML = `<p>⚠️ <strong>Assistant Notice:</strong> ${msg}</p><p style="font-size:12px;opacity:0.85;">${localHint} You can also contact Vaibhav directly at <a href="mailto:vaibhavpattanshetti123@gmail.com">vaibhavpattanshetti123@gmail.com</a>.</p>`;
     } finally {
       setInputState(false);
       body.scrollTop = body.scrollHeight;
