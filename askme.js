@@ -385,15 +385,33 @@
     win.style.transformOrigin = `${Math.min(100, Math.max(0, originX))}% ${Math.min(100, Math.max(0, originY))}%`;
   };
 
+  let isAnimating = false;
+
   const open = () => {
+    if (win.classList.contains("open") || isAnimating) return;
+    isAnimating = true;
     place();
     updateTransformOrigin();
-    void win.offsetWidth;
-    win.classList.add("open");
-    setTimeout(() => input.focus({ preventScroll: true }), 260);
+    win.classList.remove("genie-close");
+    win.classList.add("open", "genie-open");
+    setTimeout(() => {
+      win.classList.remove("genie-open");
+      isAnimating = false;
+      input.focus({ preventScroll: true });
+    }, 420);
   };
 
-  const close = () => win.classList.remove("open");
+  const close = () => {
+    if (!win.classList.contains("open") || isAnimating) return;
+    isAnimating = true;
+    updateTransformOrigin();
+    win.classList.remove("genie-open");
+    win.classList.add("genie-close");
+    setTimeout(() => {
+      win.classList.remove("open", "genie-close");
+      isAnimating = false;
+    }, 340);
+  };
 
   // ===== Draggable Launcher Button with rAF 60/120fps Sync =====
   let lDrag = false, lMoved = false, lsx = 0, lsy = 0, lox = 0, loy = 0;
