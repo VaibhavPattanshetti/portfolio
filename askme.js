@@ -376,16 +376,28 @@
     }
   }
 
+  const updateTransformOrigin = () => {
+    const lRect = launcher.getBoundingClientRect();
+    const wRect = win.getBoundingClientRect();
+    if (!wRect.width || !wRect.height) return;
+    const originX = ((lRect.left + lRect.width / 2) - wRect.left) / wRect.width * 100;
+    const originY = ((lRect.top + lRect.height / 2) - wRect.top) / wRect.height * 100;
+    win.style.transformOrigin = `${Math.min(100, Math.max(0, originX))}% ${Math.min(100, Math.max(0, originY))}%`;
+  };
+
   const open = () => {
     place();
+    updateTransformOrigin();
+    void win.offsetWidth;
     win.classList.add("open");
-    setTimeout(() => input.focus({ preventScroll: true }), 250);
+    setTimeout(() => input.focus({ preventScroll: true }), 260);
   };
 
   const close = () => win.classList.remove("open");
 
-  // ===== Draggable Launcher Button =====
+  // ===== Draggable Launcher Button with rAF 60/120fps Sync =====
   let lDrag = false, lMoved = false, lsx = 0, lsy = 0, lox = 0, loy = 0;
+  let lTargetLeft = 0, lTargetTop = 0, lRafId = null;
 
   launcher.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
@@ -398,6 +410,8 @@
     const rect = launcher.getBoundingClientRect();
     lox = rect.left;
     loy = rect.top;
+    lTargetLeft = lox;
+    lTargetTop = loy;
   });
 
   launcher.addEventListener("pointermove", (e) => {
@@ -406,19 +420,30 @@
     const dy = e.clientY - lsy;
     if (!lMoved && Math.hypot(dx, dy) < 4) return;
     lMoved = true;
-    launcher.style.right = "auto";
-    launcher.style.bottom = "auto";
+
     const maxLeft = Math.max(10, window.innerWidth - launcher.offsetWidth - 10);
     const maxTop = Math.max(10, window.innerHeight - launcher.offsetHeight - 10);
-    const newLeft = Math.min(Math.max(10, lox + dx), maxLeft);
-    const newTop = Math.min(Math.max(10, loy + dy), maxTop);
-    launcher.style.left = newLeft + "px";
-    launcher.style.top = newTop + "px";
+    lTargetLeft = Math.min(Math.max(10, lox + dx), maxLeft);
+    lTargetTop = Math.min(Math.max(10, loy + dy), maxTop);
+
+    if (!lRafId) {
+      lRafId = requestAnimationFrame(() => {
+        launcher.style.right = "auto";
+        launcher.style.bottom = "auto";
+        launcher.style.left = lTargetLeft + "px";
+        launcher.style.top = lTargetTop + "px";
+        lRafId = null;
+      });
+    }
   });
 
   const stopLauncherDrag = (e) => {
     if (!lDrag) return;
     lDrag = false;
+    if (lRafId) {
+      cancelAnimationFrame(lRafId);
+      lRafId = null;
+    }
     launcher.classList.remove("dragging");
     try {
       launcher.releasePointerCapture(e.pointerId);
@@ -527,28 +552,49 @@
   win.addEventListener("pointerup", stopResize);
   win.addEventListener("pointercancel", stopResize);
 
-  // ===== Titlebar Dragging =====
+  // ===== Titlebar Dragging with rAF 60/120fps Sync =====
   let sx, sy, ox, oy, dragging = false;
+  let wTargetLeft = 0, wTargetTop = 0, wRafId = null;
+
   bar.addEventListener("pointerdown", (e) => {
     if (e.target.closest(".askme-dots") || e.target.closest(".askme-resize-handle")) return;
     dragging = true;
     moved = true;
+    win.classList.add("dragging");
     bar.classList.add("dragging");
     bar.setPointerCapture(e.pointerId);
     sx = e.clientX;
     sy = e.clientY;
     ox = win.offsetLeft;
     oy = win.offsetTop;
+    wTargetLeft = ox;
+    wTargetTop = oy;
   });
 
   bar.addEventListener("pointermove", (e) => {
     if (!dragging) return;
-    win.style.left = Math.min(Math.max(0, ox + e.clientX - sx), innerWidth - win.offsetWidth) + "px";
-    win.style.top = Math.min(Math.max(0, oy + e.clientY - sy), innerHeight - 46) + "px";
+    const maxLeft = Math.max(0, window.innerWidth - win.offsetWidth);
+    const maxTop = Math.max(0, window.innerHeight - 46);
+    wTargetLeft = Math.min(Math.max(0, ox + e.clientX - sx), maxLeft);
+    wTargetTop = Math.min(Math.max(0, oy + e.clientY - sy), maxTop);
+
+    if (!wRafId) {
+      wRafId = requestAnimationFrame(() => {
+        win.style.left = wTargetLeft + "px";
+        win.style.top = wTargetTop + "px";
+        wRafId = null;
+      });
+    }
   });
 
   const stopDrag = () => {
+    if (!dragging) return;
     dragging = false;
+    if (wRafId) {
+      cancelAnimationFrame(wRafId);
+      wRafId = null;
+    }
+    win.classList.remove("dragging");
     bar.classList.remove("dragging");
   };
   bar.addEventListener("pointerup", stopDrag);
