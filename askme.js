@@ -435,22 +435,16 @@
             transformOrigin: "bottom right"
           },
           {
-            opacity: 0.95,
-            transform: `translate3d(${Math.round(dx * 0.52)}px, ${Math.round(dy * 0.38)}px, 0) scale(0.42, 0.62) skewX(-7deg)`,
+            opacity: 0.85,
+            transform: `translate3d(${Math.round(dx * 0.52)}px, ${Math.round(dy * 0.38)}px, 0) scale(0.38, 0.52) skewX(-7deg)`,
             transformOrigin: "bottom right",
-            offset: 0.36
+            offset: 0.35
           },
           {
-            opacity: 1,
-            transform: `translate3d(${Math.round(dx * 0.14)}px, ${Math.round(dy * 0.08)}px, 0) scale(0.88, 0.94) skewX(-1.5deg)`,
+            opacity: 0.98,
+            transform: `translate3d(${Math.round(dx * 0.12)}px, ${Math.round(dy * 0.08)}px, 0) scale(0.85, 0.88) skewX(-1.5deg)`,
             transformOrigin: "bottom right",
-            offset: 0.72
-          },
-          {
-            opacity: 1,
-            transform: `translate3d(${Math.round(dx * 0.02)}px, ${Math.round(dy * 0.01)}px, 0) scale(1.012, 1.008) skewX(0.4deg)`,
-            transformOrigin: "bottom right",
-            offset: 0.88
+            offset: 0.75
           },
           {
             opacity: 1,
@@ -459,8 +453,8 @@
           }
         ],
         {
-          duration: 560,
-          easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+          duration: 480,
+          easing: "cubic-bezier(0.25, 1, 0.5, 1)",
           fill: "forwards"
         }
       );
@@ -522,7 +516,7 @@
           }
         ],
         {
-          duration: 460,
+          duration: 480,
           easing: "cubic-bezier(0.32, 0, 0.67, 1)",
           fill: "forwards"
         }
