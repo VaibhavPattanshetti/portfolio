@@ -16,7 +16,9 @@ class KeyManager {
   }
 
   reloadKeys() {
-    const raw = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
+    const fromProcess = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
+    const fromNetlify = typeof Netlify !== "undefined" && Netlify.env ? (Netlify.env.get("GROQ_API_KEYS") || Netlify.env.get("GROQ_API_KEY") || "") : "";
+    const raw = fromProcess || fromNetlify;
     this.keys = raw
       .split(",")
       .map((k) => k.trim())
@@ -174,6 +176,21 @@ Secondary Projects (on his [GitHub Profile](https://github.com/VaibhavPattanshet
 // NETLIFY FUNCTION HANDLER (Web API Standard)
 // ==========================================
 export default async function handler(req, context) {
+  // GET health check & diagnostic
+  if (req.method === "GET") {
+    const keyFromProcess = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
+    const keyFromNetlify = typeof Netlify !== "undefined" && Netlify.env ? (Netlify.env.get("GROQ_API_KEYS") || Netlify.env.get("GROQ_API_KEY") || "") : "";
+    const rawKeys = keyFromProcess || keyFromNetlify;
+    const count = rawKeys.split(",").map(k => k.trim()).filter(Boolean).length;
+    return new Response(JSON.stringify({ status: "healthy", keyCount: count }), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  }
+
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -249,115 +266,130 @@ export default async function handler(req, context) {
   const readableStream = new ReadableStream({
     async start(controller) {
       const sendToken = (text) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token: text })}\n\n`));
+        try { controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token: text })}\n\n`)); } catch (_) {}
       };
       const sendError = (err) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: err })}\n\n`));
+        try { controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: err })}\n\n`)); } catch (_) {}
       };
       const sendDone = () => {
-        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        try { controller.enqueue(encoder.encode("data: [DONE]\n\n")); } catch (_) {}
       };
 
-      const totalKeys = Math.max(1, keyManager.keys.length);
-      const maxAttempts = totalKeys + 1;
-      let currentModel = primaryModel;
-      let attempts = 0;
-      let streamStarted = false;
+      try {
+        const totalKeys = Math.max(1, keyManager.keys.length);
+        const maxAttempts = totalKeys + 1;
+        let currentModel = primaryModel;
+        let attempts = 0;
+        let streamStarted = false;
 
-      while (attempts < maxAttempts) {
-        attempts++;
-        const activeKey = keyManager.getCurrentKey();
-
-        try {
-          const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${activeKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: currentModel,
-              temperature: 0.1,
-              stream: true,
-              messages: formattedMessages,
-            }),
-          });
-
-          if (!groqRes.ok) {
-            const errText = await groqRes.text();
-            const isRateLimit =
-              groqRes.status === 429 ||
-              errText.toLowerCase().includes("rate limit") ||
-              errText.toLowerCase().includes("tokens per day");
-
-            if (isRateLimit) {
-              if (keyManager.keys.length > 1 && attempts < keyManager.keys.length) {
-                keyManager.rotateKey();
-                continue;
-              } else if (currentModel !== fallbackModel) {
-                currentModel = fallbackModel;
-                continue;
-              }
-            }
-            throw new Error(`Groq HTTP ${groqRes.status}: ${errText}`);
-          }
-
-          const reader = groqRes.body.getReader();
-          const decoder = new TextDecoder("utf-8");
-          let sseBuffer = "";
-
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-
-            sseBuffer += decoder.decode(value, { stream: true });
-            const lines = sseBuffer.split("\n");
-            sseBuffer = lines.pop(); // keep trailing incomplete line
-
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (!trimmed.startsWith("data:")) continue;
-
-              const dataStr = trimmed.slice(5).trim();
-              if (dataStr === "[DONE]") {
-                sendDone();
-                controller.close();
-                return;
-              }
-
-              try {
-                const parsed = JSON.parse(dataStr);
-                const delta = parsed.choices?.[0]?.delta?.content || "";
-                if (delta) {
-                  streamStarted = true;
-                  sendToken(delta);
-                }
-              } catch (_) {}
-            }
-          }
-
-          sendDone();
-          controller.close();
-          return;
-        } catch (err) {
-          if (streamStarted) {
-            sendToken(`\n\n*[Connection interrupted: ${err.message}]*`);
+        while (attempts < maxAttempts) {
+          attempts++;
+          let activeKey = "";
+          try {
+            activeKey = keyManager.getCurrentKey();
+          } catch (e) {
+            sendError(e.message || "Missing Groq API Key");
             sendDone();
             controller.close();
             return;
           }
 
-          // If keys remain, retry next key
-          if (attempts < maxAttempts && keyManager.keys.length > 1) {
-            keyManager.rotateKey();
-            continue;
-          }
+          try {
+            const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${activeKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: currentModel,
+                temperature: 0.1,
+                stream: true,
+                messages: formattedMessages,
+              }),
+            });
 
-          sendError(err.message);
-          sendDone();
-          controller.close();
-          return;
+            if (!groqRes.ok) {
+              const errText = await groqRes.text();
+              const isRateLimit =
+                groqRes.status === 429 ||
+                errText.toLowerCase().includes("rate limit") ||
+                errText.toLowerCase().includes("tokens per day");
+
+              if (isRateLimit) {
+                if (keyManager.keys.length > 1 && attempts < keyManager.keys.length) {
+                  keyManager.rotateKey();
+                  continue;
+                } else if (currentModel !== fallbackModel) {
+                  currentModel = fallbackModel;
+                  continue;
+                }
+              }
+              throw new Error(`Groq HTTP ${groqRes.status}: ${errText}`);
+            }
+
+            const reader = groqRes.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let sseBuffer = "";
+
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) break;
+
+              sseBuffer += decoder.decode(value, { stream: true });
+              const lines = sseBuffer.split("\n");
+              sseBuffer = lines.pop(); // keep trailing incomplete line
+
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed.startsWith("data:")) continue;
+
+                const dataStr = trimmed.slice(5).trim();
+                if (dataStr === "[DONE]") {
+                  sendDone();
+                  controller.close();
+                  return;
+                }
+
+                try {
+                  const parsed = JSON.parse(dataStr);
+                  const delta = parsed.choices?.[0]?.delta?.content || "";
+                  if (delta) {
+                    streamStarted = true;
+                    sendToken(delta);
+                  }
+                } catch (_) {}
+              }
+            }
+
+            sendDone();
+            controller.close();
+            return;
+          } catch (err) {
+            if (streamStarted) {
+              sendToken(`\n\n*[Connection interrupted: ${err.message}]*`);
+              sendDone();
+              controller.close();
+              return;
+            }
+
+            // If keys remain, retry next key
+            if (attempts < maxAttempts && keyManager.keys.length > 1) {
+              keyManager.rotateKey();
+              continue;
+            }
+
+            sendError(err.message);
+            sendDone();
+            controller.close();
+            return;
+          }
         }
+      } catch (fatalErr) {
+        console.error("Fatal Stream Error:", fatalErr);
+        sendError(fatalErr.message || String(fatalErr));
+        sendDone();
+        try { controller.close(); } catch (_) {}
       }
     },
   });

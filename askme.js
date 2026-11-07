@@ -232,8 +232,8 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ messages: chatHistory }),
           });
-          if (res.ok || res.status === 400 || res.status === 429 || res.status === 500) {
-            response = res;
+          response = res;
+          if (res.ok) {
             break;
           }
         } catch (e) {
