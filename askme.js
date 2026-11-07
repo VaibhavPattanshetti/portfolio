@@ -459,7 +459,7 @@
           }
         ],
         {
-          duration: 380,
+          duration: 560,
           easing: "cubic-bezier(0.16, 1, 0.3, 1)",
           fill: "forwards"
         }
@@ -522,7 +522,7 @@
           }
         ],
         {
-          duration: 320,
+          duration: 460,
           easing: "cubic-bezier(0.32, 0, 0.67, 1)",
           fill: "forwards"
         }
